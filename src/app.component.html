@@ -22,6 +22,18 @@
       </div>
       
       <div class="flex items-center gap-3">
+        <!-- Model Registry Button -->
+        <button 
+          (click)="showModelManager.set(true)" 
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition-all cursor-pointer shadow-md text-xs font-semibold"
+          title="Manage Custom AI Models"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-pink-500">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.062.511.092.77.092h2.75c.259 0 .517-.03.77-.092m-4.29-9.18c.253-.062.511-.092.77-.092h2.75c.259 0 .517.03.77.092m0 0c.688.06 1.386.09 2.09.09H16.5a4.5 4.5 0 1 1 0 9h-.75c-.704 0-1.402.03-2.09.09m0-9.18c.352.16.7.351 1.036.568M14.22 5.23c.352.16.7.351 1.036.568M11.18 18.77c-.352-.16-.7-.351-1.036-.568M11.18 18.77c-.352-.16-.7-.351-1.036-.568M12 9v6m-3-3h6" />
+          </svg>
+          <span class="hidden sm:inline">Model Registry</span>
+        </button>
+
         <!-- Theme Switcher -->
         <button 
           (click)="toggleTheme()" 
@@ -193,6 +205,20 @@
                     Outfit
                   </button>
                 </div>
+              </div>
+
+              <!-- Active Model Selection -->
+              <div class="flex items-center gap-2 px-3 border-t sm:border-t-0 sm:border-l border-white/10 pt-2 sm:pt-0 pl-2 sm:pl-4">
+                <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Engine</span>
+                <select 
+                  [value]="selectedModelForAnalysis()" 
+                  (change)="selectedModelForAnalysis.set($any($event.target).value)"
+                  class="bg-slate-950/80 border border-white/10 rounded-lg px-2 py-1 text-xs text-slate-300 font-medium focus:outline-none focus:border-indigo-500 transition-all cursor-pointer min-w-[120px]"
+                >
+                  @for (m of modelService.getActiveModels(); track m.id) {
+                     <option [value]="m.id">{{ m.name }}</option>
+                  }
+                </select>
               </div>
             </div>
 
@@ -408,6 +434,212 @@
                             <div class="absolute bottom-4 right-4 bg-black/40 px-2 py-1 rounded text-[10px] text-slate-500 font-mono">{{ analysisResult()?.aspect_ratio }}</div>
                          }
                       </div>
+
+                      <!-- GPT 2 Master Prompt Engine Section -->
+                      <div class="glass-card rounded-xl p-6 border border-indigo-500/10 hover:border-indigo-500/20 transition-all mb-8">
+                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div>
+                               <h3 class="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+                                  <span class="w-2 h-2 rounded-full bg-pink-500"></span>
+                                  GPT-2 Master Prompt Engine
+                               </h3>
+                               <p class="text-xs text-slate-400 mt-1">Transform visual deconstruction results into an optimized final image model prompt.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                               <button 
+                                 (click)="autoPopulateGpt2Engine()" 
+                                 class="px-3 py-1.5 text-xs font-medium text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                                 title="Reset and pull fresh data from the active analysis"
+                               >
+                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                   <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                 </svg>
+                                 <span>Reset Fields</span>
+                               </button>
+                            </div>
+                         </div>
+
+                         <!-- Grid Form Fields -->
+                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <!-- Image Model Selector -->
+                            <div class="flex flex-col gap-1.5">
+                               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Image Model</label>
+                               <div class="relative">
+                                  <select 
+                                    [value]="selectedModelName()" 
+                                    (change)="selectedModelName.set($any($event.target).value)"
+                                    class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer"
+                                  >
+                                     <option value="gpt 2">gpt 2 (Master Compiler Active)</option>
+                                     <option value="midjourney v6">Midjourney v6</option>
+                                     <option value="dall-e 3">DALL-E 3</option>
+                                     <option value="stable diffusion 3">Stable Diffusion 3</option>
+                                  </select>
+                                  <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                       <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                     </svg>
+                                  </div>
+                               </div>
+                            </div>
+
+                            <!-- Core Concept -->
+                            <div class="flex flex-col gap-1.5">
+                               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Core Image Concept</label>
+                               <input 
+                                 type="text" 
+                                 [value]="coreImageConcept()" 
+                                 (input)="coreImageConcept.set($any($event.target).value)"
+                                 placeholder="e.g. A portrait of an astronaut"
+                                 class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                               />
+                            </div>
+
+                            <!-- Style Elements -->
+                            <div class="flex flex-col gap-1.5">
+                               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Style Elements</label>
+                               <input 
+                                 type="text" 
+                                 [value]="styleElements()" 
+                                 (input)="styleElements.set($any($event.target).value)"
+                                 placeholder="e.g. Cinematic, Photorealistic"
+                                 class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                               />
+                            </div>
+
+                            <!-- Specific Parameters -->
+                            <div class="flex flex-col gap-1.5">
+                               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Specific Model Parameters</label>
+                               <input 
+                                 type="text" 
+                                 [value]="specificModelParameters()" 
+                                 (input)="specificModelParameters.set($any($event.target).value)"
+                                 placeholder="e.g. --ar 16:9 --v 6.0"
+                                 class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                               />
+                            </div>
+
+                            <!-- Output Format -->
+                            <div class="flex flex-col gap-1.5">
+                               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Desired Output Format</label>
+                               <input 
+                                 type="text" 
+                                 [value]="desiredOutputFormat()" 
+                                 (input)="desiredOutputFormat.set($any($event.target).value)"
+                                 placeholder="e.g. A natural language prompt description"
+                                 class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                               />
+                            </div>
+
+                            <!-- Additional Details -->
+                            <div class="flex flex-col gap-1.5">
+                               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Additional Details</label>
+                               <input 
+                                 type="text" 
+                                 [value]="additionalDetails()" 
+                                 (input)="additionalDetails.set($any($event.target).value)"
+                                 placeholder="e.g. Captured with Canon EOS R5"
+                                 class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition-all"
+                               />
+                            </div>
+
+                            <!-- SAFE_BOLD Metadata block -->
+                            <div class="flex flex-col gap-1.5 md:col-span-2">
+                               <div class="flex justify-between items-center">
+                                  <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                     <span class="text-pink-400 font-mono">/SAFE_BOLD</span>
+                                     Metadata Block Content
+                                  </label>
+                                  <button 
+                                    type="button"
+                                    (click)="loadSafeBoldTemplate()"
+                                    class="text-[9px] text-pink-400 hover:text-white font-bold bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                                    title="Load default /SAFE_BOLD template with all constraints"
+                                  >
+                                     Load Preset Template
+                                  </button>
+                               </div>
+                               <textarea 
+                                 rows="4"
+                                 [value]="safeBoldContent()" 
+                                 (input)="safeBoldContent.set($any($event.target).value)"
+                                 placeholder="e.g.&#10;identity lock&#10;photorealistic&#10;golden hour"
+                                 class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-pink-300 focus:outline-none focus:border-pink-500 transition-all custom-scrollbar"
+                               ></textarea>
+                            </div>
+                         </div>
+
+                         <!-- Trigger Button -->
+                         <div class="flex justify-end items-center gap-4">
+                            @if (selectedModelName() !== 'gpt 2') {
+                               <span class="text-[10px] text-slate-500 font-medium">GPT 2 Master Prompt compilation runs on "gpt 2" model selection.</span>
+                            }
+                            <button 
+                              (click)="compileGpt2()"
+                              [disabled]="isCompiling()"
+                              class="relative px-6 py-3 text-xs font-bold text-white rounded-xl transition-all shadow-lg flex items-center gap-2 overflow-hidden border-0 cursor-pointer"
+                              [class.bg-gradient-to-r]="selectedModelName() === 'gpt 2'"
+                              [class.from-pink-600]="selectedModelName() === 'gpt 2'"
+                              [class.to-indigo-600]="selectedModelName() === 'gpt 2'"
+                              [class.hover:brightness-110]="selectedModelName() === 'gpt 2'"
+                              [class.bg-slate-800]="selectedModelName() !== 'gpt 2'"
+                              [class.text-slate-400]="selectedModelName() !== 'gpt 2' || isCompiling()"
+                              [class.hover:bg-slate-700]="selectedModelName() !== 'gpt 2' && !isCompiling()"
+                            >
+                               @if (isCompiling()) {
+                                  <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                  <span>Compiling Prompt...</span>
+                               } @else {
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                                  </svg>
+                                  <span>Apply GPT 2 Master Prompt</span>
+                               }
+                            </button>
+                         </div>
+
+                         <!-- Compilation Error -->
+                         @if (compilationError()) {
+                            <div class="mt-4 p-3 bg-red-950/20 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-2">
+                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 shrink-0">
+                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                               </svg>
+                               <span>{{ compilationError() }}</span>
+                            </div>
+                         }
+
+                         <!-- Compiled Output Display -->
+                         @if (compiledResult(); as resultText) {
+                            <div class="mt-6 border border-pink-500/20 rounded-xl bg-slate-950/80 overflow-hidden shadow-2xl animate-fade-in">
+                               <div class="px-4 py-3 bg-slate-900/80 border-b border-pink-500/10 flex justify-between items-center">
+                                  <div class="flex items-center gap-2">
+                                     <span class="flex h-2 w-2 relative">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+                                     </span>
+                                     <span class="text-[10px] font-mono font-bold text-pink-400 uppercase tracking-widest">COMPILED_MASTER_PROMPT</span>
+                                  </div>
+                                  <div class="flex items-center gap-2">
+                                     <button (click)="copyCompiledPrompt()" class="text-xs text-indigo-400 hover:text-white transition-colors flex items-center gap-1 font-medium bg-transparent border-0 cursor-pointer">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                                        </svg>
+                                        <span>{{ copyCompiledStatus() === 'idle' ? 'Copy Prompt' : 'Copied!' }}</span>
+                                     </button>
+                                     <button (click)="downloadCompiledPrompt()" class="text-xs text-indigo-400 hover:text-white transition-colors flex items-center gap-1 font-medium bg-transparent border-0 cursor-pointer">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                        </svg>
+                                        <span>Download</span>
+                                     </button>
+                                  </div>
+                                </div>
+                                <div class="p-6 font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap select-text selection:bg-pink-500/30">
+                                   {{ resultText }}
+                                </div>
+                             </div>
+                          }
+                       </div>
 
                       <!-- Structured Grid -->
                       @if (analysisResult()?.structured_prompt; as sp) {
@@ -1048,19 +1280,26 @@
   <button 
     (click)="scrollToTop(mainContainer)" 
     type="button"
-    aria-label="Scroll to top"
+    aria-label="Scroll to top of the page"
     title="Back to Top"
     id="scrollToTopBtn"
-    class="fixed right-6 bottom-6 md:right-8 md:bottom-8 z-40 w-12 h-12 rounded-full flex items-center justify-center bg-slate-900/80 hover:bg-indigo-600 border border-white/10 hover:border-transparent text-slate-300 hover:text-white shadow-xl backdrop-blur transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-950 active:scale-95 hover:-translate-y-1"
+    class="fixed right-6 bottom-6 md:right-8 md:bottom-8 z-50 w-12 h-12 rounded-full flex items-center justify-center bg-slate-900/80 hover:bg-indigo-600 border border-white/10 hover:border-transparent text-slate-300 hover:text-white shadow-xl backdrop-blur transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-950 active:scale-95 hover:-translate-y-1"
     [class.opacity-100]="showScrollTopBtn()"
     [class.pointer-events-auto]="showScrollTopBtn()"
     [class.translate-y-0]="showScrollTopBtn()"
     [class.opacity-0]="!showScrollTopBtn()"
     [class.pointer-events-none]="!showScrollTopBtn()"
     [class.translate-y-4]="!showScrollTopBtn()"
+    [tabindex]="showScrollTopBtn() ? 0 : -1"
+    [attr.aria-hidden]="!showScrollTopBtn() ? 'true' : null"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
     </svg>
   </button>
+
+  <!-- Custom Model Registry Modal -->
+  @if (showModelManager()) {
+    <app-model-manager-modal (close)="showModelManager.set(false)"></app-model-manager-modal>
+  }
 </div>

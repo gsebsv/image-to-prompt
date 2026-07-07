@@ -5,6 +5,8 @@ import { UploaderComponent } from './components/uploader.component';
 import { GeminiService } from './services/gemini.service';
 import { AuthService } from './services/auth.service';
 import { AuthModalComponent } from './components/auth-modal.component';
+import { ModelService, CustomModel } from './services/model.service';
+import { ModelManagerModalComponent } from './components/model-manager-modal.component';
 
 interface SuggestedPose {
   title: string;
@@ -80,13 +82,14 @@ interface LibraryPoseDetail {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, UploaderComponent, AuthModalComponent],
+  imports: [CommonModule, UploaderComponent, AuthModalComponent, ModelManagerModalComponent],
   templateUrl: './app.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
   private geminiService = inject(GeminiService);
   public authService = inject(AuthService);
+  public modelService = inject(ModelService);
 
   // State signals
   currentImage = signal<string | null>(null);
@@ -148,6 +151,23 @@ export class AppComponent {
 
   // Auth UI State
   showAuthModal = signal(false);
+  showModelManager = signal(false);
+
+  // Analysis Model State
+  selectedModelForAnalysis = signal<string>('gemini-2.5-flash');
+
+  // GPT-2 Master Prompt Engine state
+  selectedModelName = signal<string>('gpt 2');
+  coreImageConcept = signal<string>('');
+  styleElements = signal<string>('');
+  specificModelParameters = signal<string>('');
+  desiredOutputFormat = signal<string>('A highly polished natural-language description');
+  additionalDetails = signal<string>('');
+  safeBoldContent = signal<string>('');
+  compiledResult = signal<string | null>(null);
+  isCompiling = signal<boolean>(false);
+  compilationError = signal<string | null>(null);
+  copyCompiledStatus = signal<'idle' | 'copied'>('idle');
 
   // UI State
   // Added 'library' to the type
@@ -242,13 +262,36 @@ export class AppComponent {
     this.error.set(null);
 
     try {
-      // Pass gender and analysis focus
-      const result: AnalysisResult = await this.geminiService.analyzeImageAndGetPrompt(
-        img, 
-        mime, 
-        this.genderPreference(), 
-        this.analysisFocus()
-      );
+      let result: AnalysisResult;
+      const modelId = this.selectedModelForAnalysis();
+
+      if (modelId === 'gemini-2.5-flash') {
+        // Pass gender and analysis focus
+        result = await this.geminiService.analyzeImageAndGetPrompt(
+          img, 
+          mime, 
+          this.genderPreference(), 
+          this.analysisFocus()
+        );
+      } else {
+        // Custom model selected
+        const activeModels = this.modelService.getActiveModels();
+        const customModel = activeModels.find(m => m.id === modelId) as CustomModel;
+        if (!customModel) {
+          throw new Error('Selected custom model configuration not found.');
+        }
+
+        const focus = this.analysisFocus();
+        const gender = this.genderPreference();
+        const promptText = `Analyze this ${gender} fashion photo. Focus heavily on the ${focus} aspect of the photo. Return the results in structured JSON format according to the required schema. Ensure the response is valid JSON and matches the specified keys perfectly.`;
+
+        result = await this.modelService.runCustomModelAnalysis(
+          customModel,
+          img,
+          mime,
+          promptText
+        );
+      }
       
       // Backward compatibility mapping for 'outfit' key change if needed
       if ((result as any).outfit && !result.outfit_data && Array.isArray((result as any).outfit.items)) {
@@ -257,6 +300,9 @@ export class AppComponent {
       
       this.analysisResult.set(result);
       this.originalAnalysisResult.set(JSON.parse(JSON.stringify(result))); // Deep copy for safety
+      
+      // Auto populate GPT-2 engine inputs
+      this.autoPopulateGpt2Engine();
       
       // Save preliminary result to history
       if (this.currentUser()) {
@@ -535,6 +581,9 @@ export class AppComponent {
     // We set original to the loaded one to allow further edits from that point.
     this.originalAnalysisResult.set(JSON.parse(JSON.stringify(item.result))); 
     this.poseVisual.set(item.poseVisual || null);
+    
+    // Auto populate GPT-2 engine inputs
+    this.autoPopulateGpt2Engine();
     this.activeTab.set('prompt');
     this.error.set(null);
     this.visualGenerationError.set(null);
@@ -688,5 +737,252 @@ export class AppComponent {
       top: 0,
       behavior: 'smooth'
     });
+  }
+
+  autoPopulateGpt2Engine() {
+    const res = this.analysisResult();
+    if (!res) return;
+
+    this.coreImageConcept.set(res.structured_prompt?.subject || res.recreation_prompt || '');
+    this.styleElements.set(res.structured_prompt?.style || '');
+    this.specificModelParameters.set(res.aspect_ratio || '');
+    this.desiredOutputFormat.set('A highly polished natural-language description');
+    this.additionalDetails.set(res.technical?.camera_settings || '');
+
+    const boldItems = [
+      'identity lock',
+      'photorealistic',
+      'cinematic',
+      'high detail'
+    ];
+
+    if (res.structured_prompt?.camera) {
+      boldItems.push(`camera: ${res.structured_prompt.camera}`);
+    }
+    if (res.structured_prompt?.lighting) {
+      boldItems.push(`lighting: ${res.structured_prompt.lighting}`);
+    }
+    if (res.structured_prompt?.environment) {
+      boldItems.push(`environment: ${res.structured_prompt.environment}`);
+    }
+    if (res.structured_prompt?.outfit) {
+      boldItems.push(`outfit: ${res.structured_prompt.outfit}`);
+    }
+    if (res.negative_prompt) {
+      boldItems.push(`negatives: ${res.negative_prompt}`);
+    }
+
+    this.safeBoldContent.set(boldItems.join('\n'));
+    this.compiledResult.set(null);
+    this.compilationError.set(null);
+  }
+
+  loadSafeBoldTemplate() {
+    this.safeBoldContent.set(`/SAFE_BOLD
+
+# ===========================
+# SUBJECT
+# ===========================
+Identity Consistency: HIGH
+Face Lock: ENABLED
+Age Consistency: ENABLED
+Expression Preservation: ENABLED
+Body Proportion Consistency: ENABLED
+Natural Anatomy: REQUIRED
+Realistic Hands: REQUIRED
+Realistic Feet: REQUIRED
+Natural Fingers: REQUIRED
+Symmetrical Face: REQUIRED
+Natural Eye Alignment: REQUIRED
+
+# ===========================
+# REALISM
+# ===========================
+Photorealistic
+Ultra Realistic
+Hyper Detailed
+Natural Skin Texture
+Natural Skin Pores
+Natural Hair Strands
+Micro Details
+Physically Accurate Lighting
+True-to-Life Materials
+Realistic Fabric Behavior
+Accurate Reflections
+Correct Shadows
+
+# ===========================
+# CAMERA
+# ===========================
+Professional Photography
+DSLR Quality
+Mirrorless Quality
+RAW Style
+8K Detail
+High Dynamic Range
+HDR
+85mm Portrait Lens
+50mm Prime Lens
+Natural Perspective
+Eye-Level Composition
+Shallow Depth of Field
+f/2.8
+Clean Focus
+Sharp Eyes
+
+# ===========================
+# LIGHTING
+# ===========================
+Soft Natural Light
+Balanced Exposure
+Golden Hour
+Studio Lighting
+Soft Fill Light
+Realistic Ambient Light
+Subtle Rim Light
+Natural Shadow Falloff
+
+# ===========================
+# COMPOSITION
+# ===========================
+Editorial Composition
+Balanced Framing
+Rule of Thirds
+Natural Pose
+Natural Body Language
+Subject Centered
+Professional Crop
+High Fashion Composition
+
+# ===========================
+# STYLE
+# ===========================
+Editorial Fashion
+Lifestyle Photography
+Luxury Aesthetic
+Minimalist
+Modern
+Premium Quality
+Elegant
+Clean Background
+High-End Magazine Style
+
+# ===========================
+# COLOR
+# ===========================
+Natural Color Science
+Balanced White Balance
+Rich Contrast
+Accurate Skin Tone
+Soft Color Grading
+Professional Color Correction
+
+# ===========================
+# QUALITY
+# ===========================
+Highest Quality
+Ultra Detail
+Maximum Sharpness
+Noise Free
+No Compression Artifacts
+Professional Finish
+Production Ready
+
+# ===========================
+# NEGATIVE PROMPT
+# ===========================
+No Blur
+No Low Resolution
+No Pixelation
+No Watermark
+No Logo
+No Text
+No Caption
+No Signature
+No Duplicate Person
+No Extra Arms
+No Extra Legs
+No Extra Hands
+No Extra Fingers
+No Missing Fingers
+No Deformed Hands
+No Bad Anatomy
+No Broken Limbs
+No Crossed Eyes
+No Lazy Eye
+No Cropped Face
+No Cut-Off Body Parts
+No Distorted Face
+No Oversaturated Colors
+No Overexposed Highlights
+No Underexposed Shadows
+No Plastic Skin
+No CGI Look
+No Cartoon Style
+No Unrealistic Proportions
+No Floating Objects
+No Background Artifacts
+
+# ===========================
+# PROMPT OPTIMIZATION
+# ===========================
+Merge duplicate concepts.
+Resolve conflicting descriptions.
+Preserve realism.
+Preserve camera settings.
+Preserve lighting.
+Preserve composition.
+Preserve subject identity.
+Maintain logical scene consistency.
+Optimize wording for the selected image model.
+Generate one coherent final prompt.`);
+  }
+
+  async compileGpt2() {
+    this.isCompiling.set(true);
+    this.compilationError.set(null);
+    this.compiledResult.set(null);
+
+    try {
+      const result = await this.geminiService.compileGpt2Prompt(
+        this.selectedModelName(),
+        this.coreImageConcept(),
+        this.styleElements(),
+        this.specificModelParameters(),
+        this.desiredOutputFormat(),
+        this.additionalDetails(),
+        this.safeBoldContent()
+      );
+      this.compiledResult.set(result);
+    } catch (err: any) {
+      console.error('Compilation failed', err);
+      this.compilationError.set(err.message || 'Failed to compile prompt.');
+    } finally {
+      this.isCompiling.set(false);
+    }
+  }
+
+  copyCompiledPrompt() {
+    const text = this.compiledResult();
+    if (text) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.copyCompiledStatus.set('copied');
+        setTimeout(() => this.copyCompiledStatus.set('idle'), 2000);
+      });
+    }
+  }
+
+  downloadCompiledPrompt() {
+    const text = this.compiledResult();
+    if (!text) return;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compiled-prompt-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 }

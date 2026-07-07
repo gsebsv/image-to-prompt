@@ -419,4 +419,173 @@ export class GeminiService {
       return this.generateFallbackPoseSVG(poseDescription, gender);
     }
   }
+
+  parseSafeBold(safeBold: string): Record<string, string[]> {
+    const lines = safeBold.split('\n').map(l => l.trim());
+    const categories: Record<string, string[]> = {
+      'identity': [],
+      'realism': [],
+      'camera': [],
+      'lighting': [],
+      'composition': [],
+      'style': [],
+      'color': [],
+      'quality': [],
+      'negatives': [],
+      'other': []
+    };
+
+    let currentCategory = 'other';
+
+    for (const line of lines) {
+      if (!line) continue;
+      if (line === '/SAFE_BOLD') continue;
+
+      // Check if line is a header
+      if (line.startsWith('#') || line.startsWith('//') || line.startsWith('=')) {
+        const headerText = line.replace(/[#=/]/g, '').trim().toLowerCase();
+        if (headerText) {
+          if (headerText.includes('subject') || headerText.includes('identity')) {
+            currentCategory = 'identity';
+          } else if (headerText.includes('realism')) {
+            currentCategory = 'realism';
+          } else if (headerText.includes('camera')) {
+            currentCategory = 'camera';
+          } else if (headerText.includes('lighting')) {
+            currentCategory = 'lighting';
+          } else if (headerText.includes('composition')) {
+            currentCategory = 'composition';
+          } else if (headerText.includes('style')) {
+            currentCategory = 'style';
+          } else if (headerText.includes('color')) {
+            currentCategory = 'color';
+          } else if (headerText.includes('quality')) {
+            currentCategory = 'quality';
+          } else if (headerText.includes('negative') || headerText.includes('negatives')) {
+            currentCategory = 'negatives';
+          } else if (headerText.includes('optimization')) {
+            currentCategory = 'other';
+          }
+        }
+        continue;
+      }
+
+      // Determine category by keywords if no clear active section
+      const lowerLine = line.toLowerCase();
+      if (lowerLine.startsWith('no ') || currentCategory === 'negatives') {
+        categories['negatives'].push(line);
+      } else if (lowerLine.includes('camera') || lowerLine.includes('lens') || lowerLine.includes('portrait') || lowerLine.includes('shot') || lowerLine.includes('f/') || lowerLine.includes('depth of field') || lowerLine.includes('focus') || lowerLine.includes('dslr') || lowerLine.includes('raw')) {
+        categories['camera'].push(line);
+      } else if (lowerLine.includes('light') || lowerLine.includes('exposure') || lowerLine.includes('ambient') || lowerLine.includes('shadow') || lowerLine.includes('golden hour') || lowerLine.includes('studio')) {
+        categories['lighting'].push(line);
+      } else if (lowerLine.includes('identity') || lowerLine.includes('face') || lowerLine.includes('age') || lowerLine.includes('hand') || lowerLine.includes('finger') || lowerLine.includes('anatom') || lowerLine.includes('feet')) {
+        categories['identity'].push(line);
+      } else if (lowerLine.includes('composition') || lowerLine.includes('framing') || lowerLine.includes('thirds') || lowerLine.includes('pose') || lowerLine.includes('centered') || lowerLine.includes('crop')) {
+        categories['composition'].push(line);
+      } else if (lowerLine.includes('style') || lowerLine.includes('aesthetic') || lowerLine.includes('fashion') || lowerLine.includes('luxury') || lowerLine.includes('minimalist') || lowerLine.includes('modern') || lowerLine.includes('magazine')) {
+        categories['style'].push(line);
+      } else if (lowerLine.includes('realistic') || lowerLine.includes('photo') || lowerLine.includes('texture') || lowerLine.includes('pores') || lowerLine.includes('reflection')) {
+        categories['realism'].push(line);
+      } else if (lowerLine.includes('color') || lowerLine.includes('contrast') || lowerLine.includes('tone') || lowerLine.includes('grading') || lowerLine.includes('correction')) {
+        categories['color'].push(line);
+      } else if (lowerLine.includes('quality') || lowerLine.includes('sharp') || lowerLine.includes('noise') || lowerLine.includes('artifact') || lowerLine.includes('detail')) {
+        categories['quality'].push(line);
+      } else {
+        categories[currentCategory].push(line);
+      }
+    }
+
+    return categories;
+  }
+
+  async compileGpt2Prompt(
+    modelName: string,
+    coreConcept: string,
+    styleElements: string,
+    modelParams: string,
+    outputFormat: string,
+    additionalDetails: string,
+    safeBoldContent: string
+  ): Promise<string> {
+    try {
+      // 1. Detect if model name is "gpt 2"
+      const isGpt2 = modelName.toLowerCase() === 'gpt 2';
+
+      // 2. Parse the /SAFE_BOLD block into categories
+      const parsedCategories = this.parseSafeBold(safeBoldContent);
+
+      // 3. Format categorized metadata for presentation
+      const structuredBlock = Object.entries(parsedCategories)
+        .filter(([_, items]) => items.length > 0)
+        .map(([cat, items]) => `### Category: ${cat.toUpperCase()}\n${items.map(i => `- ${i}`).join('\n')}`)
+        .join('\n\n');
+
+      // 4. Construct instruction prompt for Gemini Compiler to resolve duplicates & conflicts and output singular optimized prompt
+      const compilerPrompt = `
+        # GPT 2 MASTER PROMPT ENGINE - DE-DUPLICATION, CONFLICT RESOLUTION & MERGING PIPELINE
+
+        You are an advanced Image Prompt Compiler.
+        Your task is to merge the user's core inputs and the parsed /SAFE_BOLD metadata categories into a singular, highly polished, production-ready final prompt for the image model.
+
+        ---
+
+        ## 1. USER INPUTS
+
+        IMAGE_MODEL_NAME: ${modelName}
+        CORE_IMAGE_CONCEPT: ${coreConcept}
+        STYLE_ELEMENTS: ${styleElements}
+        SPECIFIC_MODEL_PARAMETERS: ${modelParams}
+        DESIRED_OUTPUT_FORMAT: ${outputFormat}
+        ADDITIONAL_DETAILS: ${additionalDetails}
+
+        ---
+
+        ## 2. PARSED /SAFE_BOLD CATEGORIES METADATA
+        ${structuredBlock}
+
+        ---
+
+        ## 3. PROMPT COMPILER PIPELINE INSTRUCTIONS
+
+        Step 1: Read and analyze every input and metadata instruction.
+        Step 2: Normalize wording. Use descriptive, rich, evocative photography and fashion terminology.
+        Step 3: Remove duplicate descriptions. (e.g. if "Photorealistic" or "f/2.8" is in both Core Concept and SAFE_BOLD, keep only one instance).
+        Step 4: Resolve conflicting instructions. (e.g. if one instruction implies "Studio lighting" and another says "Natural lighting", resolve it by blending them: "Soft natural studio-quality lighting").
+        Step 5: Organize and synthesize information into a single flowing natural-language paragraph.
+        Step 6: Ensure all essential constraints are strictly preserved (such as Identity lock details, natural hands/fingers, lens selection, and aspect ratios).
+        Step 7: Format and compile into the final prompt.
+
+        ---
+
+        # CRITICAL OUTPUT FORMAT
+
+        Your output must strictly follow this exact format:
+
+        MODEL
+        ${modelName}
+
+        FINAL PROMPT
+        [A single, polished, and unified cohesive natural-language prompt paragraph that incorporates all the merged, de-duplicated and resolved attributes from both user inputs and /SAFE_BOLD categories, followed immediately by any specific model parameter tags like '--ar 16:9' or quality tags.]
+
+        NEGATIVE PROMPT
+        [A clean, unified comma-separated string containing all the compiled and de-duplicated negative items from the "negatives" category above.]
+      `;
+
+      const response = await this.retryWithBackoff(() => this.ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: compilerPrompt
+      }));
+
+      let resultText = response.text || '';
+
+      // If IMAGE_MODEL_NAME is gpt 2, we prepend the /SAFE_BOLD block metadata at the very top of the output text
+      if (isGpt2) {
+        resultText = `/SAFE_BOLD\n\n${safeBoldContent.trim()}\n\n=========================================\n\n${resultText.trim()}`;
+      }
+
+      return resultText;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
 }
