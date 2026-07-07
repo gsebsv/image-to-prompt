@@ -1,0 +1,8 @@
+{
+  "name": "Image-to-Prompt Replicator",
+  "description": "Analyzes uploaded images to generate high-fidelity recreation prompts using Gemini 2.5 Flash.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

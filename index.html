@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    // Safe browser fallback for process.env
+    window.process = window.process || {};
+    window.process.env = window.process.env || {};
+
+    // Fix for environments (like sandboxed iframes) where window.fetch has only a getter
+    // which causes libraries/polyfills attempting to assign to globalThis.fetch to crash.
+    (function() {
+      try {
+        let currentFetch = window.fetch;
+        Object.defineProperty(window, 'fetch', {
+          get() { return currentFetch; },
+          set(v) { currentFetch = v; },
+          configurable: true,
+          enumerable: true
+        });
+        
+        if (typeof globalThis !== 'undefined' && globalThis !== window) {
+          let globalFetch = globalThis.fetch || currentFetch;
+          Object.defineProperty(globalThis, 'fetch', {
+            get() { return globalFetch; },
+            set(v) { globalFetch = v; },
+            configurable: true,
+            enumerable: true
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to patch window.fetch:", e);
+      }
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image-to-Prompt Replicator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          animation: {
+            'pulse-slow': 'pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #020617; /* Slate 950 */
+      color: #f1f5f9; /* Slate 100 */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: all 0.2s ease;
+    }
+    
+    .glass-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Light Theme High-Contrast Overrides */
+    .light-theme {
+      background-color: #f8fafc !important; /* Slate 50 */
+      color: #0f172a !important; /* Slate 900 */
+    }
+    
+    .light-theme .glass-panel {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid rgba(0, 0, 0, 0.12) !important;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05) !important;
+    }
+    
+    .light-theme .glass-card {
+      background: rgba(0, 0, 0, 0.02) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    
+    .light-theme .glass-card:hover {
+      background: rgba(0, 0, 0, 0.04) !important;
+      border-color: rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    .light-theme header {
+      background-color: rgba(255, 255, 255, 0.95) !important;
+      border-color: rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .light-theme h1, 
+    .light-theme h2, 
+    .light-theme h3, 
+    .light-theme h4, 
+    .light-theme .text-white {
+      color: #0f172a !important; /* Slate 900 */
+    }
+    
+    .light-theme .text-slate-100,
+    .light-theme .text-slate-200,
+    .light-theme .text-slate-300,
+    .light-theme .text-slate-400 {
+      color: #1e293b !important; /* Slate 800 */
+    }
+
+    .light-theme .text-slate-500 {
+      color: #475569 !important; /* Slate 600 */
+    }
+
+    .light-theme .border-white\/5,
+    .light-theme .border-white\/10 {
+      border-color: rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .light-theme .bg-slate-900,
+    .light-theme .bg-slate-900\/40,
+    .light-theme .bg-slate-900\/50,
+    .light-theme .bg-slate-900\/60,
+    .light-theme .bg-slate-950,
+    .light-theme .bg-slate-950\/80 {
+      background-color: rgba(241, 245, 249, 0.9) !important; /* Slate 100 */
+    }
+
+    .light-theme .bg-slate-800\/50,
+    .light-theme .bg-slate-800\/40 {
+      background-color: rgba(226, 232, 240, 0.9) !important; /* Slate 200 */
+    }
+
+    .light-theme .bg-slate-900\/20 {
+      background-color: rgba(241, 245, 249, 0.5) !important;
+    }
+
+    .light-theme input,
+    .light-theme textarea,
+    .light-theme select {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .light-theme .bg-gradient-to-b,
+    .light-theme .blur-\[120px\] {
+      opacity: 0.15 !important;
+    }
+
+    .light-theme button:not(.bg-indigo-600):not(.bg-indigo-500):not(.bg-pink-600):not(.bg-pink-500):not(.bg-rose-600) {
+      color: #334155 !important;
+    }
+    
+    .light-theme button:hover:not(.bg-indigo-600):not(.bg-indigo-500):not(.bg-pink-600):not(.bg-pink-500):not(.bg-rose-600) {
+      color: #0f172a !important;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "rxjs": "https://esm.sh/rxjs@^7.8.2?conditions=es2015",
+    "rxjs/operators": "https://esm.sh/rxjs@^7.8.2/operators?conditions=es2015",
+    "rxjs/ajax": "https://esm.sh/rxjs@^7.8.2/ajax?conditions=es2015",
+    "rxjs/webSocket": "https://esm.sh/rxjs@^7.8.2/webSocket?conditions=es2015",
+    "rxjs/testing": "https://esm.sh/rxjs@^7.8.2/testing?conditions=es2015",
+    "rxjs/fetch": "https://esm.sh/rxjs@^7.8.2/fetch?conditions=es2015",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0?external=rxjs",
+    "@angular/common": "https://esm.sh/@angular/common@^21.0.6?external=rxjs",
+    "@angular/core": "https://esm.sh/@angular/core@^21.0.6?external=rxjs",
+    "@angular/platform-browser": "https://esm.sh/@angular/platform-browser@^21.0.6?external=rxjs",
+    "@angular/compiler": "https://esm.sh/@angular/compiler@^21.0.6?external=rxjs",
+    "@angular/forms": "https://esm.sh/@angular/forms@^21.0.6?external=rxjs"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950">
+  <app-root></app-root>
+</body>
+</html>
