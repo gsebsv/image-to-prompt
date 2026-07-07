@@ -107,7 +107,7 @@
   <div class="flex-1 relative overflow-hidden flex">
     
     <!-- Content Wrapper -->
-    <main class="flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 relative z-0" [class.mr-0]="!showHistory()" [class.mr-80]="showHistory()">
+    <main #mainContainer (scroll)="onMainScroll($event)" class="flex-1 overflow-y-auto custom-scrollbar transition-all duration-300 relative z-0" [class.mr-0]="!showHistory()" [class.mr-80]="showHistory()">
       <div class="max-w-[1400px] mx-auto h-full p-6 lg:p-8 flex flex-col">
 
         <!-- EMPTY STATE / LANDING -->
@@ -385,13 +385,21 @@
                       <!-- Master Prompt -->
                       <div class="glass-card rounded-xl p-6 relative group">
                          <div class="flex justify-between items-start mb-4">
-                            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Master Prompt</h3>
-                            <button (click)="copyPrompt()" class="text-xs text-indigo-400 hover:text-white transition-colors flex items-center gap-1 font-medium">
-                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-                               </svg>
-                               {{ copyStatus() === 'idle' ? 'Copy' : 'Copied' }}
-                            </button>
+                            <h3 class="text-sm font-semibold text-white uppercase tracking-wider" id="master-prompt-title">Master Prompt</h3>
+                            <div class="flex items-center gap-3">
+                               <button (click)="toggleJsonModal()" class="text-xs text-pink-400 hover:text-white transition-colors flex items-center gap-1 font-medium bg-transparent border-0 cursor-pointer" id="view-json-btn">
+                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-pink-500">
+                                   <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                                 </svg>
+                                 <span>JSON</span>
+                               </button>
+                               <button (click)="copyPrompt()" class="text-xs text-indigo-400 hover:text-white transition-colors flex items-center gap-1 font-medium bg-transparent border-0 cursor-pointer" id="copy-prompt-btn">
+                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                   <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                                 </svg>
+                                 <span>{{ copyStatus() === 'idle' ? 'Copy' : 'Copied' }}</span>
+                               </button>
+                            </div>
                          </div>
                          <div class="font-mono text-sm leading-7 text-slate-300 selection:bg-indigo-500/50">
                            {{ analysisResult()?.recreation_prompt }}
@@ -986,4 +994,73 @@
   @if(showAuthModal()) {
     <app-auth-modal (close)="closeAuthModal()" (loginSuccess)="closeAuthModal()"></app-auth-modal>
   }
+
+  <!-- JSON Export Modal -->
+  @if (showJsonModal()) {
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="json-modal-backdrop" (click)="toggleJsonModal()">
+      <div class="glass-panel w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" id="json-modal-container" (click)="$event.stopPropagation()">
+        <div class="p-6 border-b border-white/5 flex items-center justify-between bg-slate-900/40">
+          <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-pink-400">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+            </svg>
+            <h3 class="text-base font-bold text-white tracking-tight">Master Prompt JSON Export</h3>
+          </div>
+          <button (click)="toggleJsonModal()" class="text-slate-400 hover:text-white transition-colors cursor-pointer bg-transparent border-0" id="json-modal-close-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto custom-scrollbar bg-slate-950/50 flex-1">
+          <pre class="font-mono text-xs leading-relaxed text-slate-300 bg-slate-900/40 rounded-xl p-5 border border-white/5 overflow-x-auto select-all max-h-[50vh]">{{ getFormattedJson() }}</pre>
+        </div>
+        
+        <div class="p-6 border-t border-white/5 flex items-center justify-end gap-3 bg-slate-900/40">
+          <button 
+            (click)="copyJson()" 
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-lg bg-slate-900 border border-white/10 text-slate-200 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+            id="json-modal-copy-btn"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-slate-400">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.373-.03.748-.057 1.123-.08M15.75 18H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08M15.75 18.75v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5A3.375 3.375 0 006.375 7.5H5.25m11.9-3.664A2.251 2.251 0 0015 2.25h-1.5a2.251 2.251 0 00-1.65.686m5.05 1.4c-.06.2-.09.412-.09.63v0a1.5 1.5 0 01-1.5 1.5h-3a1.5 1.5 0 01-1.5-1.5v0c0-.218-.03-.43-.09-.63" />
+            </svg>
+            <span>{{ copyJsonStatus() === 'idle' ? 'Copy JSON' : 'Copied!' }}</span>
+          </button>
+          
+          <button 
+            (click)="downloadJson()" 
+            class="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-lg bg-pink-600 hover:bg-pink-500 text-white transition-all cursor-pointer shadow-lg shadow-pink-950/20"
+            id="json-modal-download-btn"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-white">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            <span>Download .json</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Scroll-to-Top Button -->
+  <button 
+    (click)="scrollToTop(mainContainer)" 
+    type="button"
+    aria-label="Scroll to top"
+    title="Back to Top"
+    id="scrollToTopBtn"
+    class="fixed right-6 bottom-6 md:right-8 md:bottom-8 z-40 w-12 h-12 rounded-full flex items-center justify-center bg-slate-900/80 hover:bg-indigo-600 border border-white/10 hover:border-transparent text-slate-300 hover:text-white shadow-xl backdrop-blur transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-950 active:scale-95 hover:-translate-y-1"
+    [class.opacity-100]="showScrollTopBtn()"
+    [class.pointer-events-auto]="showScrollTopBtn()"
+    [class.translate-y-0]="showScrollTopBtn()"
+    [class.opacity-0]="!showScrollTopBtn()"
+    [class.pointer-events-none]="!showScrollTopBtn()"
+    [class.translate-y-4]="!showScrollTopBtn()"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+    </svg>
+  </button>
 </div>

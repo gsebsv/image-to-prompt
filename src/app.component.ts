@@ -592,6 +592,46 @@ export class AppComponent {
     this.activeTab.set(tab);
   }
 
+  showJsonModal = signal(false);
+  copyJsonStatus = signal<'idle' | 'copied'>('idle');
+
+  getFormattedJson(): string {
+    const res = this.analysisResult();
+    if (!res) return '{}';
+    const jsonObject = {
+      master_prompt: res.recreation_prompt,
+      aspect_ratio: res.aspect_ratio || 'Original',
+      structured_elements: res.structured_prompt || null,
+      negative_prompt: res.negative_prompt || ''
+    };
+    return JSON.stringify(jsonObject, null, 2);
+  }
+
+  toggleJsonModal() {
+    this.showJsonModal.update(v => !v);
+  }
+
+  copyJson() {
+    const jsonStr = this.getFormattedJson();
+    navigator.clipboard.writeText(jsonStr).then(() => {
+      this.copyJsonStatus.set('copied');
+      setTimeout(() => this.copyJsonStatus.set('idle'), 2000);
+    });
+  }
+
+  downloadJson() {
+    const jsonStr = this.getFormattedJson();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `master-prompt-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   copyPrompt() {
     const text = this.analysisResult()?.recreation_prompt;
     if (text) {
@@ -632,5 +672,21 @@ export class AppComponent {
 
   getShoppingLink(searchTerm: string): string {
     return `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(searchTerm)}`;
+  }
+
+  showScrollTopBtn = signal(false);
+
+  onMainScroll(event: Event) {
+    const target = event.target as HTMLElement;
+    if (target) {
+      this.showScrollTopBtn.set(target.scrollTop > 300);
+    }
+  }
+
+  scrollToTop(mainElement: HTMLElement) {
+    mainElement.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   }
 }
